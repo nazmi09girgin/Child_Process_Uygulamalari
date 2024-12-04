@@ -1,0 +1,82 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+
+#define DOSYA_ADI "ortak_dosya.txt"
+
+void dosya_olustur() {
+    FILE *dosya = fopen(DOSYA_ADI, "w");
+    if (dosya == NULL) {
+        perror("Dosya oluşturulamadı");
+        exit(1);
+    }
+    fclose(dosya);
+    printf("Child Process 1: Dosya oluşturuldu\n");
+    exit(0);
+}
+
+void dosyaya_yaz() {
+    FILE *dosya = fopen(DOSYA_ADI, "a");
+    if (dosya == NULL) {
+        perror("Dosya açılamadı");
+        exit(1);
+    }
+    
+    for (int i = 0; i < 5; i++) {
+        fprintf(dosya, "Satır %d: Paralel process örneği\n", i+1);
+    }
+    
+    fclose(dosya);
+    printf("Child Process 2: Dosyaya veriler yazıldı\n");
+    exit(0);
+}
+
+void dosyayi_oku() {
+    FILE *dosya = fopen(DOSYA_ADI, "r");
+    if (dosya == NULL) {
+        perror("Dosya okunamadı");
+        exit(1);
+    }
+    
+    printf("Child Process 3: Dosya içeriği:\n");
+    char satir[256];
+    while (fgets(satir, sizeof(satir), dosya)) {
+        printf("%s", satir);
+    }
+    
+    fclose(dosya);
+    exit(0);
+}
+
+int main() {
+    pid_t pid1, pid2, pid3;
+    int status;
+
+    pid1 = fork();
+    if (pid1 == 0) {
+        dosya_olustur();
+    }
+
+    pid2 = fork();
+    if (pid2 == 0) {   	
+        sleep(1);
+        dosyaya_yaz();
+    }
+
+    pid3 = fork();
+    if (pid3 == 0) {
+        sleep(2);
+        dosyayi_oku();
+    }
+
+    waitpid(pid1, &status, 0);
+    waitpid(pid2, &status, 0);
+    waitpid(pid3, &status, 0);
+
+    printf("Parent Process: Tüm child processler tamamlandı\n");
+
+    return 0;
+}
